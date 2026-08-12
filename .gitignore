@@ -30,3 +30,4 @@ docs/private/
 
 # supabase cli local state
 supabase/.temp/
+.vercel
