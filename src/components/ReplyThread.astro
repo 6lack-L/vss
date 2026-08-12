@@ -1,0 +1,86 @@
+---
+import { actions } from 'astro:actions';
+import type { ReplyNode } from '../lib/types';
+import Avatar from './Avatar.astro';
+import ReplyItem from './ReplyItem.astro';
+
+interface Props {
+  listingId: string;
+  replies: ReplyNode[];
+  total: number;
+  error?: string | null;
+}
+
+const { listingId, replies, total, error = null } = Astro.props;
+
+const signedIn = Boolean(Astro.locals.user);
+const profile = Astro.locals.profile;
+const loginHref = `/login?next=${encodeURIComponent(`/listings/${listingId}`)}`;
+---
+
+<section class="thread card" id="reply">
+  <h2>{total === 0 ? 'No replies yet' : `${total} ${total === 1 ? 'reply' : 'replies'}`}</h2>
+
+  {error && <p class="alert alert-error">{error}</p>}
+
+  {signedIn ? (
+    <form method="POST" action={actions.createReply} class="root-form">
+      <input type="hidden" name="listing_id" value={listingId} />
+      <input type="hidden" name="parent_id" value="" />
+      <Avatar profile={profile} size={36} />
+      <div class="grow">
+        <textarea
+          class="textarea" name="body" rows="2" maxlength="2000" required
+          placeholder="Offer help, ask a question…" aria-label="Your reply"
+        ></textarea>
+        <div class="submit-row">
+          <button type="submit" class="btn btn-sm">Post reply</button>
+        </div>
+      </div>
+    </form>
+  ) : (
+    <p class="signed-out">
+      <a href={loginHref}>Sign in</a> to reply to this request.
+    </p>
+  )}
+
+  {replies.length > 0 && (
+    <ul class="reply-list">
+      {replies.map(reply => (
+        <ReplyItem reply={reply} listingId={listingId} signedIn={signedIn} />
+      ))}
+    </ul>
+  )}
+</section>
+
+<style>
+  .thread { padding: 1.25rem; }
+  .thread h2 { font-size: 1.0625rem; margin-bottom: 1rem; }
+
+  .root-form {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+  }
+
+  .grow { flex: 1; min-width: 0; }
+  .submit-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+
+  .signed-out {
+    padding: 0.85rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .reply-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+</style>

@@ -1,6 +1,13 @@
 ---
 import { siteConfig } from '../config';
-import Search from './Search.astro';
+import NavIcon from './NavIcon.astro';
+import Avatar from './Avatar.astro';
+
+const profile = Astro.locals.profile;
+const signedIn = Boolean(Astro.locals.user);
+// Preserve where the visitor was so login can send them back.
+const next = Astro.url.pathname + Astro.url.search;
+const loginHref = `/login?next=${encodeURIComponent(next)}`;
 ---
 
 <nav class="capsule-nav" transition:name="nav">
@@ -18,24 +25,7 @@ import Search from './Search.astro';
       <div class="nav-links">
         {siteConfig.nav.map(link => (
           <a href={link.href} class="nav-link">
-            {link.title === 'Home' && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            )}
-            {link.title === 'About' && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-            )}
-            {link.title === 'Tags' && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                <line x1="7" y1="7" x2="7.01" y2="7"/>
-              </svg>
-            )}
+            <NavIcon name={link.icon} />
             <span>{link.title}</span>
           </a>
         ))}
@@ -43,17 +33,15 @@ import Search from './Search.astro';
     </div>
 
     <div class="nav-right">
-      {siteConfig.features?.search && <Search />}
-
       <div class="theme-capsule" id="theme-capsule">
-        <button class="theme-option" data-theme="auto" title="Auto (follow device)">
+        <button class="theme-option" data-theme="auto" title="Auto (follow device)" aria-label="Auto theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
             <line x1="8" y1="21" x2="16" y2="21"/>
             <line x1="12" y1="17" x2="12" y2="21"/>
           </svg>
         </button>
-        <button class="theme-option" data-theme="light" title="Light mode">
+        <button class="theme-option" data-theme="light" title="Light mode" aria-label="Light theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/>
             <line x1="12" y1="1" x2="12" y2="3"/>
@@ -66,14 +54,40 @@ import Search from './Search.astro';
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
           </svg>
         </button>
-        <button class="theme-option" data-theme="dark" title="Dark mode">
+        <button class="theme-option" data-theme="dark" title="Dark mode" aria-label="Dark theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           </svg>
         </button>
       </div>
 
-      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+      {signedIn ? (
+        <div class="account" id="account">
+          <button class="account-btn" id="account-btn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+            <Avatar profile={profile} size={30} />
+          </button>
+          <div class="account-menu" id="account-menu">
+            <a href={`/u/${profile?.username ?? ''}`} class="account-item">
+              <NavIcon name="user" size={15} />
+              <span>{profile?.display_name || profile?.username || 'Profile'}</span>
+            </a>
+            <a href="/settings" class="account-item">
+              <NavIcon name="settings" size={15} />
+              <span>Settings</span>
+            </a>
+            <form method="POST" action="/logout">
+              <button type="submit" class="account-item account-item-btn">
+                <NavIcon name="logout" size={15} />
+                <span>Sign out</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <a href={loginHref} class="btn btn-sm sign-in">Sign in</a>
+      )}
+
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
@@ -82,27 +96,35 @@ import Search from './Search.astro';
   </div>
 
   <div class="mobile-menu" id="mobile-menu">
-    <a href="/" class="mobile-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span>Home</span>
-    </a>
-    <a href="/about" class="mobile-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-      <span>About</span>
-    </a>
-    <a href="/tags" class="mobile-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-        <line x1="7" y1="7" x2="7.01" y2="7"/>
-      </svg>
-      <span>Tags</span>
-    </a>
+    {siteConfig.nav.map(link => (
+      <a href={link.href} class="mobile-link">
+        <NavIcon name={link.icon} size={16} />
+        <span>{link.title}</span>
+      </a>
+    ))}
+    {signedIn ? (
+      <>
+        <a href={`/u/${profile?.username ?? ''}`} class="mobile-link">
+          <NavIcon name="user" size={16} />
+          <span>Profile</span>
+        </a>
+        <a href="/settings" class="mobile-link">
+          <NavIcon name="settings" size={16} />
+          <span>Settings</span>
+        </a>
+        <form method="POST" action="/logout">
+          <button type="submit" class="mobile-link mobile-link-btn">
+            <NavIcon name="logout" size={16} />
+            <span>Sign out</span>
+          </button>
+        </form>
+      </>
+    ) : (
+      <a href={loginHref} class="mobile-link">
+        <NavIcon name="user" size={16} />
+        <span>Sign in</span>
+      </a>
+    )}
   </div>
 </nav>
 
@@ -175,40 +197,62 @@ import Search from './Search.astro';
     color: var(--color-primary);
   }
 
-  /* Theme Capsule Switcher */
-  .theme-capsule {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 4px;
-    background: var(--bg-tertiary);
-    border-radius: 9999px;
-  }
+  /* Account */
+  .account { position: relative; }
 
-  .theme-option {
+  .account-btn {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
+    padding: 0;
     background: transparent;
     border: none;
     border-radius: 50%;
-    color: var(--text-tertiary);
     cursor: pointer;
-    transition: all var(--transition-fast);
-    position: relative;
+    line-height: 0;
   }
 
-  .theme-option:hover {
-    color: var(--text-primary);
+  .account-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.6rem);
+    min-width: 190px;
+    padding: 0.4rem;
+    background: var(--nav-bg);
+    backdrop-filter: var(--nav-backdrop);
+    -webkit-backdrop-filter: var(--nav-backdrop);
+    border: 1px solid var(--nav-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
   }
 
-  .theme-option.active {
-    background: var(--bg-primary);
-    color: var(--color-primary);
-    box-shadow: var(--shadow-sm);
+  .account-menu.active { display: block; }
+
+  .account-menu form { margin: 0; }
+
+  .account-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    border-radius: 9px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
   }
+
+  .account-item:hover { background: var(--bg-secondary); color: var(--color-primary); }
+
+  .account-item-btn {
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .sign-in { white-space: nowrap; }
 
   /* Mobile Menu Button */
   .mobile-menu-btn {
@@ -251,10 +295,13 @@ import Search from './Search.astro';
     display: flex;
   }
 
+  .mobile-menu form { margin: 0; }
+
   .mobile-link {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    width: 100%;
     color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 500;
@@ -266,8 +313,18 @@ import Search from './Search.astro';
     color: var(--color-primary);
   }
 
+  .mobile-link-btn {
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+  }
+
   @media (max-width: 640px) {
-    .nav-links {
+    .nav-links,
+    .sign-in,
+    .account {
       display: none;
     }
 
@@ -335,14 +392,41 @@ import Search from './Search.astro';
     const mobileMenu = document.getElementById('mobile-menu');
 
     mobileMenuBtn?.addEventListener('click', () => {
-      mobileMenu?.classList.toggle('active');
+      const open = mobileMenu?.classList.toggle('active');
+      mobileMenuBtn.setAttribute('aria-expanded', String(Boolean(open)));
     });
 
     // Close mobile menu when clicking a link
     document.querySelectorAll('.mobile-link').forEach(link => {
       link.addEventListener('click', () => {
         mobileMenu?.classList.remove('active');
+        mobileMenuBtn?.setAttribute('aria-expanded', 'false');
       });
+    });
+
+    // Account dropdown
+    const accountBtn = document.getElementById('account-btn');
+    const accountMenu = document.getElementById('account-menu');
+
+    accountBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = accountMenu?.classList.toggle('active');
+      accountBtn.setAttribute('aria-expanded', String(Boolean(open)));
+    });
+
+    document.addEventListener('click', (e) => {
+      if (accountMenu?.classList.contains('active') && !accountMenu.contains(e.target as Node)) {
+        accountMenu.classList.remove('active');
+        accountBtn?.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        accountMenu?.classList.remove('active');
+        accountBtn?.setAttribute('aria-expanded', 'false');
+        mobileMenu?.classList.remove('active');
+      }
     });
   }
 

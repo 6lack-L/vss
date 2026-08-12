@@ -1,22 +1,38 @@
 ---
 import '../styles/global.css';
-import '../styles/callout.css';
 import { siteConfig } from '../config';
 import { ClientRouter } from 'astro:transitions';
+import Navigation from '../components/Navigation.astro';
+import Footer from '../components/Footer.astro';
 import BackToTop from '../components/BackToTop.astro';
-import CodeBlockCopy from '../components/CodeBlockCopy.astro';
-import Lightbox from '../components/Lightbox.astro';
-import SearchModal from '../components/SearchModal.astro';
 
 interface Props {
   title?: string;
   description?: string;
+  /** Open Graph overrides — used by listing pages so shared links unfurl well. */
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;
+  /** Set false on pages that render their own full-bleed layout. */
+  chrome?: boolean;
 }
 
 const {
   title = siteConfig.title,
-  description = siteConfig.description
+  description = siteConfig.description,
+  ogTitle = title,
+  ogDescription = description,
+  ogImage,
+  ogType = 'website',
+  chrome = true,
 } = Astro.props;
+
+// Absolute URLs — Open Graph consumers reject relative ones.
+const canonical = new URL(Astro.url.pathname, Astro.site ?? siteConfig.site).href;
+const ogImageUrl = ogImage
+  ? new URL(ogImage, Astro.site ?? siteConfig.site).href
+  : undefined;
 ---
 
 <!DOCTYPE html>
@@ -28,9 +44,19 @@ const {
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
-    {siteConfig.features?.rss && (
-      <link rel="alternate" type="application/rss+xml" title={siteConfig.title + ' RSS'} href="/rss.xml" />
-    )}
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:site_name" content={siteConfig.title} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:url" content={canonical} />
+    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+
+    <meta name="twitter:card" content={ogImageUrl ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={ogTitle} />
+    <meta name="twitter:description" content={ogDescription} />
+    {ogImageUrl && <meta name="twitter:image" content={ogImageUrl} />}
 
     <ClientRouter />
 
@@ -56,10 +82,9 @@ const {
     </script>
   </head>
   <body>
+    {chrome && <Navigation />}
     <slot />
+    {chrome && <Footer />}
     {siteConfig.features?.backToTop && <BackToTop />}
-    <CodeBlockCopy />
-    {siteConfig.features?.lightbox && <Lightbox />}
-    {siteConfig.features?.search && <SearchModal />}
   </body>
 </html>

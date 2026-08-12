@@ -3,42 +3,51 @@
 
 export const siteConfig = {
   // Site title — displayed in nav, footer, and page titles
-  title: 'CapsuleX',
+  title: 'V.S.S',
 
-  // Site description — used in meta tags and hero section
-  description: 'A minimal blog theme with capsule design',
+  // Site description — used in meta tags and the hero section
+  description: 'Post volunteer requests, find help nearby, lend a hand.',
 
-  // Author name — used in footer and meta author tag
-  author: 'wangjacks',
-
-  // Site URL — set before deployment (e.g., https://example.com)
-  // Used for RSS feed and SEO
-  site: 'https://capsule-x-brown.vercel.app',
+  // Site URL — MUST be the real deployment origin.
+  // Share links and Open Graph tags build absolute URLs from this; if it is
+  // wrong, shared listings will unfurl with broken links.
+  site: import.meta.env.PUBLIC_SITE_URL || 'http://localhost:4321',
 
   // HTML lang attribute — affects SEO and accessibility
   lang: 'en',
 
-  // Navigation links — displayed in capsule nav bar
+  // Navigation links — displayed in the capsule nav bar and the mobile menu.
+  // `icon` selects the inline SVG in Navigation.astro.
   nav: [
-    { title: 'Home', href: '/' },
-    { title: 'About', href: '/about' },
-    { title: 'Tags', href: '/tags' },
+    { title: 'Feed', href: '/', icon: 'home' },
+    { title: 'Listings', href: '/listings', icon: 'list' },
+    { title: 'About', href: '/about', icon: 'info' },
   ],
 
   // Social links — leave empty to hide
   social: {
-    github: 'https://github.com/wangjacks/capsule-x',
+    github: '',
   },
 
   // Feature toggles
   features: {
-    readingProgress: true,  // Show reading progress bar on post pages
-    backToTop: true,        // Show back to top button
-    callout: true,          // Show callout components in blog posts
-    lightbox: true,         // Enable image lightbox on click
-    rss: true,              // Enable RSS feed
-    search: true,           // Enable client-side search (Fuse.js)
+    // Google sign-in. Turning this on is not enough on its own: you must also
+    // add a Google client ID/secret in Supabase → Authentication → Providers,
+    // and register /auth/callback as a Redirect URL for every origin.
+    googleAuth: false,
+    backToTop: true,      // Show back-to-top button
+    reactions: true,      // "Interested" reactions on listings
+    share: true,          // Share menu on listing pages
+    locationFilter: true, // Town filter on /listings
   },
+
+  // Reaction kinds available on a listing
+  reactions: [
+    { kind: 'interested', label: 'Interested' },
+  ],
+
+  // How long a new listing stays open, in days (used as the composer default)
+  defaultListingDays: 14,
 };
 
 export type SiteConfig = typeof siteConfig;

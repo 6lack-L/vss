@@ -1,0 +1,64 @@
+---
+import type { AuthorRef, Profile } from '../lib/types';
+import { initialsFor } from '../lib/format';
+
+interface Props {
+  profile?: AuthorRef | Profile | null;
+  size?: number;
+  /** Wrap in a link to the profile page. */
+  link?: boolean;
+}
+
+const { profile, size = 40, link = false } = Astro.props;
+
+const name = profile?.display_name || profile?.username || 'Anonymous';
+const initials = initialsFor(name);
+// Deterministic hue from the username so avatars stay stable across renders.
+const hue = [...(profile?.username ?? 'anon')].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const Tag = link && profile?.username ? 'a' : 'span';
+const href = link && profile?.username ? `/u/${profile.username}` : undefined;
+---
+
+<Tag
+  href={href}
+  class="avatar"
+  style={`--size:${size}px; --hue:${hue};`}
+  title={name}
+>
+  {profile?.avatar_url
+    ? <img src={profile.avatar_url} alt="" width={size} height={size} loading="lazy" />
+    : <span class="initials" aria-hidden="true">{initials}</span>}
+  <span class="sr-only">{name}</span>
+</Tag>
+
+<style>
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    overflow: hidden;
+    background: hsl(var(--hue) 55% 88%);
+    color: hsl(var(--hue) 60% 25%);
+    font-size: calc(var(--size) * 0.38);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    user-select: none;
+  }
+
+  :global(html.dark) .avatar {
+    background: hsl(var(--hue) 35% 26%);
+    color: hsl(var(--hue) 70% 85%);
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

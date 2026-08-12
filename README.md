@@ -1,293 +1,108 @@
-<p align="center">
-  <img src="public/logo.svg" alt="CapsuleX Logo" width="120">
-</p>
+# V.S.S
 
-<h1 align="center">CapsuleX</h1>
+A volunteer-work social platform. Community members post requests for help —
+a park cleanup, raking leaves for a neighbour, a hand moving furniture — and
+others reply in threads, mark themselves interested, and share listings out.
 
-<p align="center">
-  A minimal, modern blog theme for Astro with capsule floating navigation.
-</p>
+Built on Astro 7 (SSR, Vercel adapter) with Supabase for auth and Postgres.
+The UI is derived from the [CapsuleX](https://github.com/wangjacks/capsule-x)
+theme: CSS custom properties, a tri-state theme switcher, and the glassmorphism
+capsule nav.
 
-<p align="center">
-  <a href="https://capsule-x-brown.vercel.app">Demo</a> •
-  <a href="https://github.com/wangjacks/capsule-x">GitHub</a>
-</p>
+## Setup
 
----
+### 1. Create a Supabase project
 
-> [!NOTE]
-> This theme is in beta. There are no official releases or npm packages yet. If you want to use it, clone directly from the repository.
-
-## Features
-
-### Navigation & Layout
-
-- **Capsule Floating Navigation** — Glassmorphism nav bar with backdrop blur, fixed at top
-- **Tri-State Theme Switcher** — Auto (follow device) / Light / Dark with smooth transitions
-- **Responsive Design** — Mobile-first, hamburger menu on small screens
-- **Footer** — Capsule-style footer with social links
-
-### Reading Experience
-
-- **Floating TOC** — Desktop sticky sidebar + mobile capsule toggle button
-- **Reading Progress Bar** — Fixed top line, scales as you scroll
-- **Estimated Reading Time** — Based on word count (EN ~200 WPM, CN ~400 CPM)
-- **Prev/Next Navigation** — Bottom of each post, responsive grid
-- **Pinned Posts** — Pin important articles to the top of the list
-
-### Content Components
-
-- **Callout Blocks** — GitHub-style `[!NOTE]`, `[!WARNING]`, `[!TIP]`, `[!INFO]` syntax
-- **Code Block Enhancements** — Filename labels, diff syntax, copy button (Shiki transformers)
-- **Image Lightbox** — Click to view fullscreen, keyboard navigation (← → ESC)
-- **Tags System** — Filter posts by tags with dedicated tag pages
-
-### Interaction & Animation
-
-- **Scroll Fade-in Animations** — Posts fade in as you scroll
-- **View Transitions API** — Smooth page transitions with Astro's ClientRouter
-- **Back to Top Button** — Capsule style, appears after scrolling
-
-### Search & Feed
-
-- **Client-Side Search** — Fuse.js powered, modal UI with keyboard shortcut (⌘K)
-- **RSS Feed** — Auto-generated with `@astrojs/rss`, auto-discovery in head
-
----
-
-## Quick Start
+Then apply the schema. Either paste `supabase/migrations/0001_init.sql` into the
+SQL editor, or with the Supabase CLI:
 
 ```bash
-# Clone the repository
-git clone https://github.com/wangjacks/capsule-x.git
-cd capsule-x
-
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
+supabase db push
 ```
 
-Open [http://localhost:4321](http://localhost:4321) in your browser.
+The migration creates `profiles`, `listings`, `replies`, `reactions` and
+`locations`, enables row-level security on all of them, and installs a trigger
+that creates a profile row for every new auth user.
 
----
+Edit the seed `locations` at the bottom of the migration to your real towns.
 
-## Configuration
-
-All settings are centralized in `src/config.ts`:
-
-```ts
-export const siteConfig = {
-  title: 'CapsuleX',
-  description: 'A minimal blog theme with capsule design',
-  author: 'Your Name',
-  site: 'https://your-domain.com',
-  lang: 'en',
-
-  nav: [
-    { title: 'Home', href: '/' },
-    { title: 'About', href: '/about' },
-    { title: 'Tags', href: '/tags' },
-  ],
-
-  social: {
-    github: 'https://github.com/your-username',
-  },
-
-  features: {
-    readingProgress: true,
-    backToTop: true,
-    callout: true,
-    lightbox: true,
-    rss: true,
-    search: true,
-  },
-};
-```
-
-### Feature Toggles
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `readingProgress` | `true` | Reading progress bar on post pages |
-| `backToTop` | `true` | Back to top button |
-| `callout` | `true` | Callout blocks in blog posts |
-| `lightbox` | `true` | Image lightbox on click |
-| `rss` | `true` | RSS feed generation |
-| `search` | `true` | Client-side search with Fuse.js |
-
----
-
-## Writing Content
-
-### Blog Posts
-
-Create `.md` or `.mdx` files in `src/content/blog/`:
-
-```markdown
----
-title: "Your Post Title"
-description: "A brief description"
-pubDate: 2026-07-04
-tags: ["tag1", "tag2"]
-pinned: false
----
-
-Your content here...
-```
-
-### Frontmatter Options
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `title` | `string` | Yes | Post title |
-| `description` | `string` | Yes | Post description |
-| `pubDate` | `date` | Yes | Publication date |
-| `tags` | `string[]` | No | Post tags |
-| `pinned` | `boolean` | No | Pin to top of list |
-| `draft` | `boolean` | No | Exclude from build |
-
-### Callout Blocks (Markdown)
-
-```markdown
-> [!NOTE]
-> This is a note callout.
-
-> [!TIP]
-> This is a tip callout.
-
-> [!WARNING]
-> This is a warning callout.
-
-> [!CAUTION]
-> This is a caution callout.
-```
-
-### Code Blocks
-
-````markdown
-```ts title="src/utils.ts"
-export function greet(name: string): string {
-  return `Hello, ${name}!`;
-}
-```
-
-```diff
-- oldFunction();
-+ newFunction();
-```
-````
-
----
-
-## Project Structure
-
-```
-capsule-x/
-├── public/                  # Static assets (favicon, logo, images)
-├── src/
-│   ├── components/          # UI components
-│   │   ├── BackToTop.astro
-│   │   ├── CodeBlockCopy.astro
-│   │   ├── Footer.astro
-│   │   ├── Lightbox.astro
-│   │   ├── Navigation.astro
-│   │   ├── ReadingProgress.astro
-│   │   ├── Search.astro
-│   │   ├── SearchModal.astro
-│   │   └── TableOfContents.astro
-│   ├── content/
-│   │   ├── about/           # About page content
-│   │   └── blog/            # Blog posts (Markdown/MDX)
-│   ├── layouts/
-│   │   └── BaseLayout.astro
-│   ├── pages/
-│   │   ├── index.astro      # Home page
-│   │   ├── about.astro      # About page
-│   │   ├── tags/            # Tag pages
-│   │   ├── rss.xml.js       # RSS feed
-│   │   └── 404.astro        # 404 page
-│   ├── styles/
-│   │   ├── global.css       # Global styles & CSS variables
-│   │   └── callout.css      # Callout block styles
-│   ├── utils/
-│   │   └── readingTime.ts   # Reading time calculator
-│   └── config.ts            # Site configuration
-├── docs/                    # Project documentation
-├── astro.config.mjs         # Astro configuration
-├── package.json
-└── tsconfig.json
-```
-
----
-
-## Development
+### 2. Configure environment
 
 ```bash
-# Start dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+cp .env.example .env
 ```
 
-### Tech Stack
+Fill in `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from
+Project Settings → API. The anon key is meant to be public; RLS is what
+protects the data. **Do not add a service-role key** — this app deliberately
+has no way to bypass RLS.
 
-| Layer | Technology |
-|-------|------------|
-| Framework | Astro 7 |
-| Content | Markdown / MDX |
-| Styling | CSS Variables + Native CSS |
-| Syntax Highlighting | Shiki |
-| Search | Fuse.js |
-| RSS | @astrojs/rss |
+### 3. Turn off email confirmation for local development
 
----
+Authentication → Sign In / Up → Email → disable "Confirm email". With it on,
+signup returns no session until the emailed link is clicked, and you cannot
+test the flow locally. Leave it **on** in production.
 
-## Deployment
-
-### Vercel
+### 4. Run
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
+npx astro dev --background   # astro dev stop | status | logs
 ```
 
-### Netlify
+## Deploying to Vercel
 
-```bash
-# Build command
-npm run build
+Set `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY` and `PUBLIC_SITE_URL`
+(the real origin, e.g. `https://vss.example.com`) in the Vercel project's
+environment variables. `PUBLIC_SITE_URL` is what share links and Open Graph
+tags build absolute URLs from — get it wrong and shared listings unfurl
+pointing at localhost.
 
-# Publish directory
-dist
-```
+In Supabase → Authentication → URL Configuration, add
+`https://your-domain/auth/callback` as a Redirect URL.
 
-### Other Platforms
+### Optional: Google sign-in
 
-CapsuleX generates static HTML, so it can be deployed to any static hosting service.
+1. Add a Google client ID/secret in Supabase → Authentication → Providers.
+2. Register `/auth/callback` as a Redirect URL for every origin.
+3. Set `features.googleAuth: true` in `src/config.ts`.
 
----
+## Architecture
 
-## Contributing
+| Path | Role |
+| --- | --- |
+| `src/config.ts` | Single source of site settings — title, nav, feature flags |
+| `src/middleware.ts` | Per-request Supabase client, session refresh, `Astro.locals` |
+| `src/lib/supabase.ts` | Cookie-backed server client and browser client |
+| `src/lib/listings.ts` | All listing/reply queries, plus `buildReplyTree` |
+| `src/lib/format.ts` | `daysLeft`, `relativeTime`, `excerpt` and friends |
+| `src/actions/index.ts` | Every mutation, as Astro Actions with Zod validation |
+| `src/layouts/BaseLayout.astro` | Head, OG tags, theme script, nav and footer |
+| `supabase/migrations/` | Schema and RLS policies |
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Routes
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+| Route | Purpose |
+| --- | --- |
+| `/` | Feed — composer plus open requests, newest first |
+| `/listings` | Browse with `?location=`, `?sort=`, `?q=`, `?status=` |
+| `/listings/[id]` | Detail, threaded replies, share buttons, OG tags |
+| `/listings/[id]/edit` | Edit your own listing |
+| `/login`, `/signup`, `/logout`, `/auth/callback` | Auth |
+| `/settings` | Profile and account |
+| `/u/[username]` | Public profile and that person's requests |
+| `/about` | Static, prerendered |
 
----
+### Two conventions worth knowing
 
-## License
+**RLS is the security boundary.** Actions re-check the session server-side, but
+the policies in `supabase/migrations/0001_init.sql` are what actually stop user
+A from deleting user B's listing. A UI that hides a button proves nothing —
+test ownership by calling Supabase directly from the browser console.
 
-[Apache 2.0](LICENSE)
+**Client scripts must init on `astro:page-load`.** View Transitions are enabled,
+so a bare top-level script runs once and then dies on the first client-side
+navigation.
+
+**Forms work without JavaScript.** Every mutation is a real `<form>` posting to
+an Astro Action. The composer's extra fields collapse only once JS runs; nested
+reply forms use `<details>` for native collapse. Keep it that way.

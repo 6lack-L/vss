@@ -1,0 +1,138 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../config';
+
+// Where to send people after signing in. Only same-origin paths are honoured,
+// so a crafted ?next= cannot bounce a freshly-authenticated user off-site.
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
+  return raw;
+}
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+// /auth/callback bounces failures back here with a message.
+let error: string | null = Astro.url.searchParams.get('error');
+let email = '';
+
+if (Astro.locals.user) {
+  return Astro.redirect(next, 302);
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+
+  if (form.get('provider') === 'google') {
+    const { data, error: oauthError } = await Astro.locals.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: new URL(
+          `/auth/callback?next=${encodeURIComponent(next)}`,
+          Astro.url.origin
+        ).href,
+      },
+    });
+    if (data?.url) return Astro.redirect(data.url, 303);
+    error = oauthError?.message ?? 'Could not start Google sign-in.';
+  }
+
+  email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+
+  if (error) {
+    // Fall through and render the OAuth failure above.
+  } else if (!email || !password) {
+    error = 'Enter your email and password.';
+  } else {
+    const { error: signInError } = await Astro.locals.supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) {
+      // Deliberately vague: distinguishing "no such account" from "wrong
+      // password" tells an attacker which emails are registered.
+      error = 'That email and password combination did not work.';
+    } else {
+      return Astro.redirect(safeNext(String(form.get('next') ?? next)), 303);
+    }
+  }
+}
+---
+
+<BaseLayout title={'Sign in - ' + siteConfig.title}>
+  <main class="container-narrow">
+    <div class="auth card">
+      <h1>Welcome back</h1>
+      <p class="sub">Sign in to post volunteer requests and reply to your neighbours.</p>
+
+      {error && <p class="alert alert-error">{error}</p>}
+
+      <form method="POST">
+        <input type="hidden" name="next" value={next} />
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            class="input" type="email" id="email" name="email"
+            value={email} autocomplete="email" required
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            class="input" type="password" id="password" name="password"
+            autocomplete="current-password" required
+          />
+        </div>
+
+        <button type="submit" class="btn full">Sign in</button>
+      </form>
+
+      {siteConfig.features?.googleAuth && (
+        <>
+          <div class="divider"><span>or</span></div>
+          <form method="POST">
+            <input type="hidden" name="provider" value="google" />
+            <input type="hidden" name="next" value={next} />
+            <button type="submit" class="btn btn-secondary full">Continue with Google</button>
+          </form>
+        </>
+      )}
+
+      <p class="switch">
+        New here? <a href={`/signup?next=${encodeURIComponent(next)}`}>Create an account</a>
+      </p>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .auth { max-width: 420px; margin: 2rem auto 4rem; padding: 2rem; }
+  .auth h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+  .sub { color: var(--text-secondary); font-size: 0.9375rem; margin-bottom: 1.5rem; }
+  .full { width: 100%; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.25rem 0;
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+  }
+
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+  }
+
+  .switch {
+    margin: 1.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+</style>

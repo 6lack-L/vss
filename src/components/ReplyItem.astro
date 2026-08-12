@@ -1,0 +1,171 @@
+---
+import { actions } from 'astro:actions';
+import type { ReplyNode } from '../lib/types';
+import Avatar from './Avatar.astro';
+import RelativeTime from './RelativeTime.astro';
+import Self from './ReplyItem.astro';
+
+interface Props {
+  reply: ReplyNode;
+  listingId: string;
+  depth?: number;
+  signedIn: boolean;
+}
+
+const { reply, listingId, depth = 0, signedIn } = Astro.props;
+
+// Cap the visual indent so a deep thread doesn't squeeze itself off the page.
+// Deeper replies still nest structurally, they just stop stepping right.
+const MAX_INDENT = 3;
+const nextDepth = Math.min(depth + 1, MAX_INDENT);
+const isAuthor = Astro.locals.user?.id === reply.author_id;
+---
+
+<li class="reply" id={`r-${reply.id}`}>
+  <div class="reply-main">
+    <Avatar profile={reply.author} size={32} link />
+    <div class="bubble-wrap">
+      <div class="bubble">
+        <div class="reply-head">
+          {reply.author?.username ? (
+            <a href={`/u/${reply.author.username}`} class="name">
+              {reply.author.display_name || reply.author.username}
+            </a>
+          ) : (
+            <span class="name">Someone</span>
+          )}
+          <RelativeTime date={reply.created_at} />
+        </div>
+        <p class="text">{reply.body}</p>
+      </div>
+
+      {signedIn ? (
+        <details class="reply-box">
+          <summary>
+            <span class="tool">Reply</span>
+            {isAuthor && (
+              <form method="POST" action={actions.deleteReply} class="inline-form">
+                <input type="hidden" name="id" value={reply.id} />
+                <button type="submit" class="tool danger">Delete</button>
+              </form>
+            )}
+          </summary>
+
+          <!-- <details> gives native collapse, so the nested reply form works
+               with JavaScript disabled. -->
+          <form method="POST" action={actions.createReply} class="nested-form">
+            <input type="hidden" name="listing_id" value={listingId} />
+            <input type="hidden" name="parent_id" value={reply.id} />
+            <textarea
+              class="textarea" name="body" rows="2" maxlength="2000" required
+              placeholder={`Reply to ${reply.author?.display_name || reply.author?.username || 'this'}…`}
+              aria-label="Your reply"
+            ></textarea>
+            <button type="submit" class="btn btn-sm">Post reply</button>
+          </form>
+        </details>
+      ) : (
+        <div class="reply-tools">
+          <a href={`/login?next=${encodeURIComponent(`/listings/${listingId}`)}`} class="tool">Reply</a>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {reply.children.length > 0 && (
+    <ul class="children" style={`--depth:${nextDepth}`}>
+      {reply.children.map(child => (
+        <Self reply={child} listingId={listingId} depth={nextDepth} signedIn={signedIn} />
+      ))}
+    </ul>
+  )}
+</li>
+
+<style>
+  .reply { list-style: none; }
+  .reply-main { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .bubble-wrap { flex: 1; min-width: 0; }
+
+  .bubble {
+    background: var(--bg-secondary);
+    border-radius: 14px;
+    padding: 0.6rem 0.85rem;
+  }
+
+  .reply-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.15rem;
+  }
+
+  .name { color: var(--text-primary); font-weight: 600; font-size: 0.875rem; }
+  .name:hover { color: var(--color-primary); }
+
+  .text {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .reply-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0.25rem 0;
+  }
+
+  .inline-form { margin: 0; display: contents; }
+
+  .tool {
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+
+  .tool:hover { color: var(--color-primary); }
+  .tool.danger:hover { color: var(--color-danger); }
+
+  .children {
+    margin: 0.6rem 0 0 1.35rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .reply-box > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0.25rem 0;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .reply-box > summary::-webkit-details-marker { display: none; }
+
+  .nested-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0;
+  }
+
+  .nested-form .textarea { min-height: 3.5rem; font-size: 0.875rem; }
+
+  @media (max-width: 520px) {
+    .children { margin-left: 0.5rem; padding-left: 0.6rem; }
+  }
+</style>

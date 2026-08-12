@@ -1,0 +1,112 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../config';
+
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
+  return raw;
+}
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+let error: string | null = null;
+let notice: string | null = null;
+let email = '';
+let username = '';
+let displayName = '';
+
+if (Astro.locals.user) {
+  return Astro.redirect(next, 302);
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim();
+  username = String(form.get('username') ?? '').trim().toLowerCase();
+  displayName = String(form.get('display_name') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+
+  if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+    error = 'Usernames are 3–30 characters: lowercase letters, numbers and underscores.';
+  } else if (password.length < 8) {
+    error = 'Use a password of at least 8 characters.';
+  } else {
+    // username and display_name ride along in user metadata; the
+    // handle_new_user() trigger reads them out to create the profile row.
+    const { data, error: signUpError } = await Astro.locals.supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username, display_name: displayName || null } },
+    });
+
+    if (signUpError) {
+      error = signUpError.message;
+    } else if (data.session) {
+      return Astro.redirect(next, 303);
+    } else {
+      // Email confirmation is enabled on the project — no session yet.
+      notice = `Check ${email} for a confirmation link to finish setting up your account.`;
+    }
+  }
+}
+---
+
+<BaseLayout title={'Create an account - ' + siteConfig.title}>
+  <main class="container-narrow">
+    <div class="auth card">
+      <h1>Join {siteConfig.title}</h1>
+      <p class="sub">Post what you need help with, or lend a hand nearby.</p>
+
+      {error && <p class="alert alert-error">{error}</p>}
+      {notice && <p class="alert alert-success">{notice}</p>}
+
+      {!notice && (
+        <form method="POST">
+          <div class="field">
+            <label for="email">Email</label>
+            <input class="input" type="email" id="email" name="email" value={email} autocomplete="email" required />
+          </div>
+
+          <div class="field">
+            <label for="username">Username</label>
+            <input
+              class="input" type="text" id="username" name="username" value={username}
+              autocomplete="username" pattern="[a-z0-9_]{'{'}3,30{'}'}" required
+            />
+            <p class="hint">Your public handle, e.g. <code>sam_rivera</code>. Lowercase, 3–30 characters.</p>
+          </div>
+
+          <div class="field">
+            <label for="display_name">Display name <span class="opt">(optional)</span></label>
+            <input class="input" type="text" id="display_name" name="display_name" value={displayName} autocomplete="name" />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <input class="input" type="password" id="password" name="password" autocomplete="new-password" minlength="8" required />
+            <p class="hint">At least 8 characters.</p>
+          </div>
+
+          <button type="submit" class="btn full">Create account</button>
+        </form>
+      )}
+
+      <p class="switch">
+        Already have an account? <a href={`/login?next=${encodeURIComponent(next)}`}>Sign in</a>
+      </p>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .auth { max-width: 440px; margin: 2rem auto 4rem; padding: 2rem; }
+  .auth h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+  .sub { color: var(--text-secondary); font-size: 0.9375rem; margin-bottom: 1.5rem; }
+  .opt { font-weight: 400; color: var(--text-tertiary); }
+  .full { width: 100%; }
+  .switch {
+    margin: 1.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+</style>

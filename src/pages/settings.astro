@@ -1,0 +1,127 @@
+---
+import { actions } from 'astro:actions';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Avatar from '../components/Avatar.astro';
+import { siteConfig } from '../config';
+
+// The middleware already redirects signed-out visitors away from /settings;
+// this narrows the type and covers the route if that list ever changes.
+const { user, profile } = Astro.locals;
+if (!user || !profile) {
+  return Astro.redirect('/login?next=/settings', 302);
+}
+
+const result = Astro.getActionResult(actions.updateProfile);
+const error = result?.error?.message ?? null;
+const savedUsername = result && !result.error ? result.data.username : null;
+const saved = savedUsername !== null;
+
+// Show what was just saved rather than the stale row the middleware loaded
+// before the action ran.
+const current = savedUsername ? { ...profile, username: savedUsername } : profile;
+---
+
+<BaseLayout title={'Settings - ' + siteConfig.title}>
+  <main class="container-narrow">
+    <h1>Account settings</h1>
+
+    <section class="card">
+      <h2>Profile</h2>
+
+      {error && <p class="alert alert-error">{error}</p>}
+      {saved && <p class="alert alert-success">Profile saved.</p>}
+
+      <div class="preview">
+        <Avatar profile={current} size={56} />
+        <div>
+          <strong>{current.display_name || current.username}</strong>
+          <span class="handle">@{current.username}</span>
+        </div>
+      </div>
+
+      <form method="POST" action={actions.updateProfile}>
+        <div class="field">
+          <label for="username">Username</label>
+          <input
+            class="input" type="text" id="username" name="username" required
+            value={current.username} minlength="3" maxlength="30" pattern="[a-z0-9_]+"
+          />
+          <p class="hint">
+            Your profile lives at <code>/u/{current.username}</code>. Changing this
+            breaks any links people have already shared.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="display_name">Display name</label>
+          <input
+            class="input" type="text" id="display_name" name="display_name"
+            maxlength="60" value={current.display_name ?? ''}
+          />
+        </div>
+
+        <div class="field">
+          <label for="avatar_url">Avatar URL</label>
+          <input
+            class="input" type="url" id="avatar_url" name="avatar_url"
+            placeholder="https://…" value={current.avatar_url ?? ''}
+          />
+          <p class="hint">A link to an image. Must start with https://. Leave blank to use your initials.</p>
+        </div>
+
+        <div class="field">
+          <label for="bio">Bio</label>
+          <textarea class="textarea" id="bio" name="bio" rows="3" maxlength="300">{current.bio ?? ''}</textarea>
+        </div>
+
+        <div class="actions">
+          <a href={`/u/${current.username}`} class="btn btn-secondary">View profile</a>
+          <button type="submit" class="btn">Save changes</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Account</h2>
+      <dl class="meta">
+        <dt>Email</dt>
+        <dd>{user.email}</dd>
+      </dl>
+      <form method="POST" action="/logout">
+        <button type="submit" class="btn btn-secondary btn-sm">Sign out</button>
+      </form>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  main h1 { font-size: 1.75rem; margin-bottom: 1.5rem; }
+
+  .card { padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card:last-of-type { margin-bottom: 3rem; }
+  .card h2 { font-size: 1.0625rem; margin-bottom: 1.25rem; }
+
+  .preview {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 14px;
+  }
+
+  .preview strong { display: block; color: var(--text-primary); }
+  .handle { color: var(--text-tertiary); font-size: 0.875rem; }
+
+  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+  .meta { margin-bottom: 1.25rem; }
+  .meta dt {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+  }
+  .meta dd { margin: 0; color: var(--text-secondary); }
+</style>

@@ -1,0 +1,43 @@
+---
+import { relativeTime, formatDate } from '../lib/format';
+
+interface Props {
+  date: string;
+  href?: string;
+}
+
+const { date, href } = Astro.props;
+// Rendered on the server so it is correct without JS, then refreshed
+// client-side because a cached page's "2 minutes ago" goes stale.
+const label = relativeTime(date);
+const Tag = href ? 'a' : 'time';
+---
+
+<Tag class="rel-time" href={href} datetime={date} title={formatDate(date)} data-relative-time={date}>
+  {label}
+</Tag>
+
+<style>
+  .rel-time {
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  a.rel-time:hover { color: var(--color-primary); }
+</style>
+
+<script>
+  import { relativeTime } from '../lib/format';
+
+  function refreshRelativeTimes() {
+    document.querySelectorAll<HTMLElement>('[data-relative-time]').forEach(el => {
+      const iso = el.dataset.relativeTime;
+      if (iso) el.textContent = relativeTime(iso);
+    });
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    refreshRelativeTimes();
+    window.setInterval(refreshRelativeTimes, 60_000);
+  });
+</script>

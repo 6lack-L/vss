@@ -1,0 +1,166 @@
+---
+import { actions } from 'astro:actions';
+import type { Location } from '../lib/types';
+import { siteConfig } from '../config';
+import Avatar from './Avatar.astro';
+
+interface Props {
+  locations: Location[];
+  error?: string | null;
+}
+
+const { locations, error = null } = Astro.props;
+const profile = Astro.locals.profile;
+const name = profile?.display_name || profile?.username || 'you';
+---
+
+<section class="composer card" data-composer>
+  {error && <p class="alert alert-error">{error}</p>}
+
+  <form method="POST" action={actions.createListing}>
+    <div class="top">
+      <Avatar profile={profile} size={42} />
+      <textarea
+        class="textarea prompt"
+        id="body"
+        name="body"
+        rows="2"
+        maxlength="5000"
+        required
+        placeholder={`What do you need a hand with, ${name}?`}
+        aria-label="What do you need a hand with?"
+        data-autogrow
+        data-expand-trigger
+      ></textarea>
+    </div>
+
+    <!-- Hidden until the composer is engaged, but present in the DOM so the
+         form is fully usable with JavaScript disabled. -->
+    <div class="details" data-details>
+      <div class="field">
+        <label for="title">Title</label>
+        <input class="input" type="text" id="title" name="title" maxlength="120"
+          placeholder="e.g. Help clearing the riverside path" />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="location">Town</label>
+          <select class="select" id="location" name="location">
+            <option value="">Anywhere</option>
+            {locations.map(l => <option value={l.slug}>{l.name}</option>)}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="days">Open for</label>
+          <select class="select" id="days" name="days">
+            {[3, 7, 14, 30, 60].map(d => (
+              <option value={d} selected={d === siteConfig.defaultListingDays}>
+                {d} days
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="skills">Skills or equipment needed</label>
+        <textarea class="textarea short" id="skills" name="skills" rows="2" maxlength="1000"
+          placeholder="e.g. Bring your own gloves. No experience needed."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="contact">How to get in touch</label>
+        <textarea class="textarea short" id="contact" name="contact" rows="2" maxlength="500"
+          placeholder="Name, phone or email — only share what you're happy making public."></textarea>
+        <p class="hint">This is visible to everyone, including people who aren't signed in.</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-ghost btn-sm toggle" data-toggle-details hidden>
+        Add details
+      </button>
+      <button type="submit" class="btn">Post request</button>
+    </div>
+  </form>
+</section>
+
+<style>
+  .composer { margin-bottom: 1.5rem; padding: 1rem 1.25rem; }
+  .composer form { margin: 0; }
+
+  .top { display: flex; align-items: flex-start; gap: 0.7rem; }
+
+  .prompt {
+    border: none;
+    background: var(--bg-secondary);
+    border-radius: 18px;
+    min-height: 2.75rem;
+    padding: 0.65rem 1rem;
+    resize: none;
+    overflow: hidden;
+  }
+
+  .prompt:focus { box-shadow: none; background: var(--bg-tertiary); }
+
+  .details { margin-top: 1rem; }
+  .details .field:last-child { margin-bottom: 0; }
+  .short { min-height: 3.5rem; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .toggle { margin-right: auto; }
+
+  @media (max-width: 520px) {
+    .row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  function initComposer() {
+    document.querySelectorAll<HTMLElement>('[data-composer]').forEach(root => {
+      if (root.dataset.bound) return;
+      root.dataset.bound = 'true';
+
+      const details = root.querySelector<HTMLElement>('[data-details]');
+      const toggle = root.querySelector<HTMLButtonElement>('[data-toggle-details]');
+      const trigger = root.querySelector<HTMLTextAreaElement>('[data-expand-trigger]');
+
+      // Collapse the extra fields only once JS is running. Without JS they stay
+      // visible and the form still posts everything.
+      if (details && toggle) {
+        details.hidden = true;
+        toggle.hidden = false;
+
+        const expand = () => {
+          details.hidden = false;
+          toggle.hidden = true;
+        };
+
+        toggle.addEventListener('click', expand);
+        trigger?.addEventListener('focus', expand, { once: true });
+      }
+
+      root.querySelectorAll<HTMLTextAreaElement>('[data-autogrow]').forEach(el => {
+        const grow = () => {
+          el.style.height = 'auto';
+          el.style.height = el.scrollHeight + 'px';
+        };
+        el.addEventListener('input', grow);
+        grow();
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initComposer);
+</script>

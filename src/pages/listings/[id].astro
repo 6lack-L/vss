@@ -1,0 +1,118 @@
+---
+import { actions } from 'astro:actions';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import ReplyThread from '../../components/ReplyThread.astro';
+import { siteConfig } from '../../config';
+import { excerpt } from '../../lib/format';
+import {
+  buildReplyTree,
+  fetchListing,
+  fetchLocations,
+  fetchReplies,
+  fetchViewerReactions,
+} from '../../lib/listings';
+
+const { supabase, user } = Astro.locals;
+const { id } = Astro.params;
+
+// Deleting from the detail page has nowhere to return to.
+const deleted = Astro.getActionResult(actions.deleteListing);
+if (deleted && !deleted.error) {
+  return Astro.redirect('/listings', 303);
+}
+
+const replyResult = Astro.getActionResult(actions.createReply);
+const replyError = replyResult?.error?.message ?? null;
+
+if (!id) return Astro.redirect('/listings', 302);
+
+const listing = await fetchListing(supabase, id);
+if (!listing) {
+  return new Response('Listing not found', { status: 404 });
+}
+
+const [locations, replies, reacted] = await Promise.all([
+  fetchLocations(supabase),
+  fetchReplies(supabase, listing.id),
+  fetchViewerReactions(supabase, user?.id, [listing.id]),
+]);
+
+listing.viewer_reacted = reacted.has(listing.id);
+
+const tree = buildReplyTree(replies);
+const isAuthor = user?.id === listing.author_id;
+const heading = listing.title || 'Volunteer request';
+const author = listing.author?.display_name || listing.author?.username || 'a neighbour';
+---
+
+<BaseLayout
+  title={`${heading} - ${siteConfig.title}`}
+  description={excerpt(listing.body)}
+  ogTitle={heading}
+  ogDescription={`${excerpt(listing.body, 140)} — posted by ${author}`}
+  ogType="article"
+>
+  <main class="container-narrow">
+    <nav class="crumbs">
+      <a href="/listings">← All listings</a>
+    </nav>
+
+    <PostCard listing={listing} locations={locations} detail />
+
+    {isAuthor && (
+      <div class="owner-tools card">
+        <span>You posted this.</span>
+        <div class="owner-actions">
+          <a href={`/listings/${listing.id}/edit`} class="btn btn-secondary btn-sm">Edit</a>
+          <form method="POST" action={actions.deleteListing} data-confirm-delete>
+            <input type="hidden" name="id" value={listing.id} />
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </div>
+      </div>
+    )}
+
+    <ReplyThread
+      listingId={listing.id}
+      replies={tree}
+      total={replies.length}
+      error={replyError}
+    />
+  </main>
+</BaseLayout>
+
+<style>
+  .crumbs { margin-bottom: 1rem; font-size: 0.875rem; }
+
+  .owner-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+
+  .owner-actions { display: flex; align-items: center; gap: 0.5rem; }
+  .owner-tools form { margin: 0; }
+</style>
+
+<script>
+  function initConfirmDelete() {
+    document.querySelectorAll<HTMLFormElement>('[data-confirm-delete]').forEach(form => {
+      if (form.dataset.bound) return;
+      form.dataset.bound = 'true';
+      form.addEventListener('submit', (e) => {
+        if (!confirm('Delete this listing? Its replies go with it. This cannot be undone.')) {
+          e.preventDefault();
+        }
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initConfirmDelete);
+</script>

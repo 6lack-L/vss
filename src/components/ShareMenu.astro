@@ -1,0 +1,148 @@
+---
+interface Props {
+  url: string;
+  title: string;
+  /** Compact icon-only trigger for feed cards. */
+  compact?: boolean;
+}
+
+const { url, title, compact = false } = Astro.props;
+
+// Plain intent URLs — no third-party SDKs, no tracking scripts loaded into the page.
+const enc = encodeURIComponent;
+const targets = [
+  { name: 'X', href: `https://twitter.com/intent/tweet?url=${enc(url)}&text=${enc(title)}` },
+  { name: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}` },
+  { name: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}` },
+  { name: 'WhatsApp', href: `https://wa.me/?text=${enc(title + ' ' + url)}` },
+  { name: 'Email', href: `mailto:?subject=${enc(title)}&body=${enc(url)}` },
+];
+---
+
+<div class="share" data-share>
+  <button type="button" class="action-btn" data-share-trigger aria-haspopup="true" aria-expanded="false">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+    </svg>
+    {!compact && <span>Share</span>}
+  </button>
+
+  <div class="share-menu" data-share-menu>
+    {targets.map(t => (
+      <a href={t.href} target="_blank" rel="noopener noreferrer" class="share-item">{t.name}</a>
+    ))}
+    <button type="button" class="share-item copy" data-copy-url={url}>
+      <span data-copy-label>Copy link</span>
+    </button>
+  </div>
+</div>
+
+<style>
+  .share { position: relative; display: flex; flex: 1; }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    flex: 1;
+    padding: 0.45rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .action-btn:hover { background: var(--bg-secondary); color: var(--color-primary); }
+
+  .share-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.4rem);
+    z-index: 20;
+    min-width: 160px;
+    padding: 0.35rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .share-menu.active { display: block; }
+
+  .share-item {
+    display: block;
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .share-item:hover { background: var(--bg-secondary); color: var(--color-primary); }
+</style>
+
+<script>
+  function initShare() {
+    document.querySelectorAll<HTMLElement>('[data-share]').forEach(root => {
+      if (root.dataset.bound) return;
+      root.dataset.bound = 'true';
+
+      const trigger = root.querySelector<HTMLButtonElement>('[data-share-trigger]');
+      const menu = root.querySelector<HTMLElement>('[data-share-menu]');
+      if (!trigger || !menu) return;
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close any other open share menu first.
+        document.querySelectorAll('[data-share-menu].active').forEach(m => {
+          if (m !== menu) m.classList.remove('active');
+        });
+        const open = menu.classList.toggle('active');
+        trigger.setAttribute('aria-expanded', String(open));
+      });
+
+      const copyBtn = root.querySelector<HTMLButtonElement>('[data-copy-url]');
+      const copyLabel = root.querySelector<HTMLElement>('[data-copy-label]');
+      copyBtn?.addEventListener('click', async () => {
+        const url = copyBtn.dataset.copyUrl ?? '';
+        try {
+          await navigator.clipboard.writeText(url);
+          if (copyLabel) {
+            copyLabel.textContent = 'Copied';
+            setTimeout(() => { copyLabel.textContent = 'Copy link'; }, 1600);
+          }
+        } catch {
+          // Clipboard is blocked (insecure origin, or permission denied) —
+          // fall back to letting the user copy it themselves.
+          window.prompt('Copy this link', url);
+        }
+      });
+    });
+  }
+
+  function closeAllShareMenus(e: Event) {
+    document.querySelectorAll<HTMLElement>('[data-share-menu].active').forEach(menu => {
+      if (!menu.parentElement?.contains(e.target as Node)) menu.classList.remove('active');
+    });
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    initShare();
+    document.addEventListener('click', closeAllShareMenus);
+  });
+</script>

@@ -1,0 +1,100 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Avatar from '../../components/Avatar.astro';
+import PostCard from '../../components/PostCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { siteConfig } from '../../config';
+import { formatDate } from '../../lib/format';
+import { fetchListings, fetchLocations, fetchViewerReactions } from '../../lib/listings';
+import type { Profile } from '../../lib/types';
+
+const { supabase, user } = Astro.locals;
+const { username } = Astro.params;
+
+if (!username) return Astro.redirect('/', 302);
+
+const { data } = await supabase
+  .from('profiles')
+  .select('id, username, display_name, avatar_url, bio, created_at')
+  .eq('username', username.toLowerCase())
+  .maybeSingle();
+
+const profile = data as Profile | null;
+if (!profile) {
+  return new Response('Profile not found', { status: 404 });
+}
+
+const [listings, locations] = await Promise.all([
+  fetchListings(supabase, { authorId: profile.id, sort: 'newest', limit: 50 }),
+  fetchLocations(supabase),
+]);
+
+const reacted = await fetchViewerReactions(supabase, user?.id, listings.map(l => l.id));
+for (const l of listings) l.viewer_reacted = reacted.has(l.id);
+
+const isSelf = user?.id === profile.id;
+const name = profile.display_name || profile.username;
+---
+
+<BaseLayout
+  title={`${name} - ${siteConfig.title}`}
+  description={profile.bio || `${name}'s volunteer requests on ${siteConfig.title}.`}
+  ogType="profile"
+>
+  <main class="container-narrow">
+    <header class="profile card">
+      <Avatar profile={profile} size={72} />
+      <div class="who">
+        <h1>{name}</h1>
+        <p class="handle">@{profile.username}</p>
+        {profile.bio && <p class="bio">{profile.bio}</p>}
+        <p class="joined">Joined {formatDate(profile.created_at)}</p>
+      </div>
+      {isSelf && <a href="/settings" class="btn btn-secondary btn-sm edit">Edit profile</a>}
+    </header>
+
+    <h2 class="section">
+      {listings.length} {listings.length === 1 ? 'request' : 'requests'}
+    </h2>
+
+    {listings.length === 0 ? (
+      <EmptyState
+        title={isSelf ? "You haven't posted yet" : `${name} hasn't posted yet`}
+        message={isSelf ? 'Post a volunteer request and it will show up here.' : undefined}
+        actionHref={isSelf ? '/' : undefined}
+        actionLabel={isSelf ? 'Post a request' : undefined}
+      />
+    ) : (
+      listings.map(listing => <PostCard listing={listing} locations={locations} />)
+    )}
+  </main>
+</BaseLayout>
+
+<style>
+  .profile {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .who { flex: 1; min-width: 0; }
+  .who h1 { font-size: 1.35rem; margin-bottom: 0.1rem; }
+  .handle { color: var(--text-tertiary); font-size: 0.875rem; margin-bottom: 0.6rem; }
+  .bio { color: var(--text-secondary); margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+  .joined { color: var(--text-tertiary); font-size: 0.8125rem; margin: 0; }
+  .edit { flex-shrink: 0; }
+
+  .section {
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    margin-bottom: 0.85rem;
+  }
+
+  @media (max-width: 520px) {
+    .profile { flex-wrap: wrap; }
+  }
+</style>

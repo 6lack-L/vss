@@ -1,0 +1,91 @@
+---
+import { actions } from 'astro:actions';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { siteConfig } from '../../../config';
+import { fetchListing, fetchLocations } from '../../../lib/listings';
+
+const { supabase, user } = Astro.locals;
+const { id } = Astro.params;
+
+if (!id) return Astro.redirect('/listings', 302);
+
+if (!user) {
+  return Astro.redirect(`/login?next=${encodeURIComponent(`/listings/${id}/edit`)}`, 302);
+}
+
+const result = Astro.getActionResult(actions.updateListing);
+if (result && !result.error) {
+  return Astro.redirect(`/listings/${id}`, 303);
+}
+const error = result?.error?.message ?? null;
+
+const listing = await fetchListing(supabase, id);
+if (!listing) return new Response('Listing not found', { status: 404 });
+
+// The RLS update policy is the real guard; this just avoids showing a form
+// that could never succeed.
+if (listing.author_id !== user.id) {
+  return new Response('You can only edit your own listings', { status: 403 });
+}
+
+const locations = await fetchLocations(supabase);
+---
+
+<BaseLayout title={'Edit listing - ' + siteConfig.title}>
+  <main class="container-narrow">
+    <nav class="crumbs"><a href={`/listings/${id}`}>← Back to the listing</a></nav>
+
+    <div class="card">
+      <h1>Edit your request</h1>
+
+      {error && <p class="alert alert-error">{error}</p>}
+
+      <form method="POST" action={actions.updateListing}>
+        <input type="hidden" name="id" value={listing.id} />
+
+        <div class="field">
+          <label for="title">Title</label>
+          <input class="input" type="text" id="title" name="title" maxlength="120" value={listing.title ?? ''} />
+        </div>
+
+        <div class="field">
+          <label for="body">What do you need help with?</label>
+          <textarea class="textarea" id="body" name="body" rows="6" maxlength="5000" required>{listing.body}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="location">Town</label>
+          <select class="select" id="location" name="location">
+            <option value="">Anywhere</option>
+            {locations.map(l => (
+              <option value={l.slug} selected={l.slug === listing.location}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="skills">Skills or equipment needed</label>
+          <textarea class="textarea" id="skills" name="skills" rows="3" maxlength="1000">{listing.skills ?? ''}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="contact">How to get in touch</label>
+          <textarea class="textarea" id="contact" name="contact" rows="3" maxlength="500">{listing.contact ?? ''}</textarea>
+          <p class="hint">Visible to everyone, including people who aren't signed in.</p>
+        </div>
+
+        <div class="actions">
+          <a href={`/listings/${id}`} class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .crumbs { margin-bottom: 1rem; font-size: 0.875rem; }
+  .card { padding: 1.75rem; margin-bottom: 3rem; }
+  .card h1 { font-size: 1.35rem; margin-bottom: 1.25rem; }
+  .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+</style>

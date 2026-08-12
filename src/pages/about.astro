@@ -1,57 +1,56 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Navigation from '../components/Navigation.astro';
-import Footer from '../components/Footer.astro';
 import { siteConfig } from '../config';
-import { getCollection, render } from 'astro:content';
 
-const aboutEntries = await getCollection('about');
-const about = aboutEntries[0];
-
-let Content;
-if (about) {
-  const rendered = await render(about);
-  Content = rendered.Content;
-}
+export const prerender = true;
 ---
 
-<BaseLayout title={about?.data.title + ' - ' + siteConfig.title || 'About - ' + siteConfig.title}>
-  <Navigation />
-
-  <main class="container" style="padding-top: 6rem;">
+<BaseLayout title={'About - ' + siteConfig.title} description={siteConfig.description}>
+  <main class="container-narrow">
     <article class="about">
-      {Content && <Content />}
+      <h1>About {siteConfig.title}</h1>
+      <p class="lede">{siteConfig.description}</p>
+
+      <h2>How it works</h2>
+      <p>
+        Anyone in the community can post a volunteer request — a park cleanup, help
+        raking leaves for an elderly neighbour, a hand moving furniture. Say what you
+        need, which town it's in, roughly what skills it takes, and how to reach you.
+      </p>
+      <p>
+        Neighbours browse the feed, filter by town, and reply on the listing itself so
+        the conversation stays with the request. Mark yourself as interested and the
+        person who posted can see who's coming.
+      </p>
+
+      <h2>Listings expire</h2>
+      <p>
+        Every request carries an end date. Once it passes, the listing is marked closed
+        and drops out of the default feed — so what you see is work that still needs
+        doing, not a graveyard of old posts.
+      </p>
+
+      <h2>Ground rules</h2>
+      <ul>
+        <li>Post real requests. Don't use listings for advertising.</li>
+        <li>Only share contact details you're comfortable making public.</li>
+        <li>Be straight about what the work involves and how long it takes.</li>
+        <li>You can edit or delete anything you posted, at any time.</li>
+      </ul>
+
+      <p class="cta">
+        <a href="/listings" class="btn">Browse listings</a>
+      </p>
     </article>
   </main>
-
-  <Footer />
 </BaseLayout>
 
 <style>
-  .about {
-    max-width: 600px;
-    padding: 2rem 0;
-  }
-</style>
-
-<style is:global>
-  .about h1 {
-    margin-bottom: 1.5rem;
-  }
-
-  .about h2 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-  }
-
-  .about ul {
-    list-style: disc;
-    padding-left: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .about li {
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-  }
+  .about { padding: 1rem 0 2rem; }
+  .about h1 { margin-bottom: 0.75rem; }
+  .about h2 { margin: 2rem 0 0.5rem; font-size: 1.15rem; }
+  .lede { font-size: 1.0625rem; color: var(--text-secondary); }
+  .about ul { margin: 0 0 1rem 1.25rem; color: var(--text-secondary); }
+  .about li { margin-bottom: 0.35rem; }
+  .cta { margin-top: 2rem; }
 </style>

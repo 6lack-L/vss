@@ -1,0 +1,141 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { siteConfig } from '../../config';
+import { fetchListings, fetchLocations, fetchViewerReactions } from '../../lib/listings';
+
+const { supabase, user } = Astro.locals;
+const params = Astro.url.searchParams;
+
+const locations = await fetchLocations(supabase);
+
+// Filters live in the URL: bookmarkable, shareable, and they work on a hard
+// reload with JS disabled. The prototype's versions only fired alert().
+const rawLocation = params.get('location');
+const location = locations.some(l => l.slug === rawLocation) ? rawLocation : null;
+const sort = params.get('sort') === 'oldest' ? 'oldest' : 'newest';
+const q = (params.get('q') ?? '').trim() || null;
+const openOnly = params.get('status') !== 'all';
+
+const listings = await fetchListings(supabase, { location, sort, q, openOnly, limit: 100 });
+
+const reacted = await fetchViewerReactions(supabase, user?.id, listings.map(l => l.id));
+for (const l of listings) l.viewer_reacted = reacted.has(l.id);
+
+const locationName = locations.find(l => l.slug === location)?.name;
+const count = listings.length;
+const hasFilters = Boolean(location || q || !openOnly || sort !== 'newest');
+---
+
+<BaseLayout
+  title={`Listings${locationName ? ' in ' + locationName : ''} - ${siteConfig.title}`}
+  description={`Browse volunteer requests${locationName ? ' in ' + locationName : ''}.`}
+>
+  <main class="container-narrow">
+    <header class="head">
+      <h1>Listings</h1>
+      <p class="count">
+        {count === 0 ? 'No results' : `${count} ${count === 1 ? 'result' : 'results'}`}
+        {locationName && ` in ${locationName}`}
+        {q && ` matching “${q}”`}
+      </p>
+    </header>
+
+    <form method="GET" class="filters card">
+      <div class="search-row">
+        <label class="sr-only" for="q">Search listings</label>
+        <input
+          class="input" type="search" id="q" name="q" value={q ?? ''}
+          placeholder="Search requests, skills…"
+        />
+        <button type="submit" class="btn">Search</button>
+      </div>
+
+      <div class="selects">
+        {siteConfig.features?.locationFilter && (
+          <div class="field">
+            <label for="location">Town</label>
+            <select class="select" id="location" name="location">
+              <option value="">Everywhere</option>
+              {locations.map(l => (
+                <option value={l.slug} selected={l.slug === location}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div class="field">
+          <label for="sort">Sort</label>
+          <select class="select" id="sort" name="sort">
+            <option value="newest" selected={sort === 'newest'}>Newest first</option>
+            <option value="oldest" selected={sort === 'oldest'}>Oldest first</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="status">Show</label>
+          <select class="select" id="status" name="status">
+            <option value="open" selected={openOnly}>Open only</option>
+            <option value="all" selected={!openOnly}>Open and closed</option>
+          </select>
+        </div>
+      </div>
+
+      {hasFilters && <a href="/listings" class="clear">Clear filters</a>}
+    </form>
+
+    {count === 0 ? (
+      <EmptyState
+        title="No listings match"
+        message={hasFilters
+          ? 'Try widening the search — a different town, or including closed listings.'
+          : 'Nothing has been posted yet. Be the first.'}
+        actionHref={hasFilters ? '/listings' : '/'}
+        actionLabel={hasFilters ? 'Clear filters' : 'Post a request'}
+      />
+    ) : (
+      listings.map(listing => <PostCard listing={listing} locations={locations} />)
+    )}
+  </main>
+</BaseLayout>
+
+<style>
+  .head { margin-bottom: 1.25rem; }
+  .head h1 { font-size: 1.75rem; margin-bottom: 0.2rem; }
+  .count { color: var(--text-secondary); margin: 0; font-size: 0.9375rem; }
+
+  .filters { margin-bottom: 1.5rem; padding: 1rem 1.25rem; }
+  .filters .field { margin-bottom: 0; }
+
+  .search-row { display: flex; gap: 0.5rem; margin-bottom: 0.9rem; }
+
+  .selects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+
+  .clear {
+    display: inline-block;
+    margin-top: 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 560px) {
+    .selects { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  // Re-submit on change so the filters feel immediate. The Search button and a
+  // plain Enter keypress still work when this never runs.
+  function initFilters() {
+    const form = document.querySelector<HTMLFormElement>('form.filters');
+    if (!form || form.dataset.bound) return;
+    form.dataset.bound = 'true';
+
+    form.querySelectorAll<HTMLSelectElement>('select').forEach(select => {
+      select.addEventListener('change', () => form.submit());
+    });
+  }
+
+  document.addEventListener('astro:page-load', initFilters);
+</script>
