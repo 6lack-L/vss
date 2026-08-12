@@ -27,3 +27,6 @@ pnpm-debug.log*
 
 # private docs (not for public repo)
 docs/private/
+
+# supabase cli local state
+supabase/.temp/
