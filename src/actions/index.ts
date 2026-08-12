@@ -26,12 +26,17 @@ function dbError(message: string, error: unknown): never {
   throw new ActionError({ code: 'INTERNAL_SERVER_ERROR', message });
 }
 
+/**
+ * `nullish`, not `optional`: a form field that is absent from the submission
+ * arrives as `null` (FormData.get returns null for a missing key), which an
+ * `.optional()` string rejects with a 400 before the handler ever runs.
+ */
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
     .max(max)
-    .optional()
+    .nullish()
     .transform(v => (v ? v : null));
 
 export const server = {
@@ -106,8 +111,19 @@ export const server = {
     handler: async ({ id }, context) => {
       requireUser(context);
 
-      const { error } = await context.locals.supabase.from('listings').delete().eq('id', id);
+      // RLS turns "not yours" into zero rows deleted rather than an error, so
+      // check what came back — otherwise a failed delete reports success.
+      const { data, error } = await context.locals.supabase
+        .from('listings')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+
       if (error) dbError('Could not delete that listing.', error);
+      if (!data) {
+        throw new ActionError({ code: 'FORBIDDEN', message: 'That is not your listing.' });
+      }
       return { ok: true };
     },
   }),
@@ -118,7 +134,7 @@ export const server = {
       listing_id: z.uuid(),
       parent_id: z
         .string()
-        .optional()
+        .nullish()
         .transform(v => (v && v.length > 0 ? v : null))
         .refine(v => v === null || z.uuid().safeParse(v).success, 'Invalid parent'),
       body: z.string().trim().min(1, 'Write something first.').max(2000),
@@ -147,8 +163,17 @@ export const server = {
     input: z.object({ id: z.uuid() }),
     handler: async ({ id }, context) => {
       requireUser(context);
-      const { error } = await context.locals.supabase.from('replies').delete().eq('id', id);
+      const { data, error } = await context.locals.supabase
+        .from('replies')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+
       if (error) dbError('Could not delete that reply.', error);
+      if (!data) {
+        throw new ActionError({ code: 'FORBIDDEN', message: 'That is not your reply.' });
+      }
       return { ok: true };
     },
   }),
@@ -206,7 +231,7 @@ export const server = {
       avatar_url: z
         .string()
         .trim()
-        .optional()
+        .nullish()
         .transform(v => (v ? v : null))
         .refine(
           v => v === null || /^https:\/\//.test(v),
