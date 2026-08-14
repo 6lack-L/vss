@@ -33,6 +33,9 @@
   --nav-bg: rgba(255, 255, 255, 0.8);
   --nav-backdrop: blur(12px);
   --nav-border: rgba(226, 232, 240, 0.8);
+  /* Space the fixed capsule needs above page content. Navigation.astro
+     replaces this with the measured height once the nav is on screen. */
+  --nav-clearance: 6rem;
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -170,19 +173,32 @@ pre code {
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  /* Side padding only. A `padding` shorthand here would reset padding-top and,
+     being a class, outrank the `body > main` clearance rule below — which is
+     what used to leave the fixed nav sitting on top of every page heading. */
+  padding-inline: 1.5rem;
 }
 
 /* Clears the fixed capsule nav. Navigation lives in BaseLayout, so every
-   page's <main> gets this automatically instead of an inline style. */
-body > main { padding-top: 6rem; }
+   page's <main> gets this automatically instead of an inline style.
+   --nav-clearance is the fallback; Navigation.astro measures the real capsule
+   height on load and resize and overwrites it, so a nav that wraps to two
+   lines on a narrow screen never sits on top of the page heading. */
+body > main { padding-top: var(--nav-clearance); }
+
+/* Anchor targets and page headings land below the capsule, not behind it. */
+:target,
+body > main h1,
+body > main h2 {
+  scroll-margin-top: var(--nav-clearance);
+}
 
 /* Feed-width column — a single readable stream of posts */
 .container-narrow {
   width: 100%;
   max-width: 680px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding-inline: 1.5rem;
 }
 
 /* ===================================

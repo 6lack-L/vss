@@ -145,6 +145,7 @@ const loginHref = `/login?next=${encodeURIComponent(next)}`;
     justify-content: space-between;
     gap: 1rem;
     padding: 0.75rem 1.5rem;
+    min-width: 0;
     background: var(--nav-bg);
     backdrop-filter: var(--nav-backdrop);
     -webkit-backdrop-filter: var(--nav-backdrop);
@@ -157,21 +158,33 @@ const loginHref = `/login?next=${encodeURIComponent(next)}`;
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    min-width: 0;
   }
 
   .nav-right {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .nav-logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
     color: var(--text-primary);
     font-weight: 600;
     font-size: 1rem;
+  }
+
+  .nav-logo svg { flex-shrink: 0; }
+
+  /* Long site names truncate instead of wrapping the capsule to two rows. */
+  .nav-logo span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .nav-logo:hover {
@@ -331,11 +344,48 @@ const loginHref = `/login?next=${encodeURIComponent(next)}`;
     .mobile-menu-btn {
       display: flex;
     }
+
+    .nav-inner {
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+    }
+
+    .nav-right { gap: 0.5rem; }
   }
 </style>
 
 <script>
   function initNavigation() {
+    // Publish the capsule's real height so page content clears it. The nav is
+    // fixed, so a hardcoded padding breaks as soon as the capsule wraps to two
+    // rows on a narrow screen — page headings end up behind it.
+    const nav = document.querySelector('.capsule-nav') as HTMLElement | null;
+    const navInner = nav?.querySelector('.nav-inner') as HTMLElement | null;
+
+    function syncNavClearance() {
+      if (!nav || !navInner) return;
+      // Measure the capsule only, not the open mobile menu — the menu is a
+      // dropdown and should overlay rather than push the page down.
+      // The nav is fixed, so its rect top is the viewport offset and does not
+      // move with scroll — no scrollY term here.
+      const top = nav.getBoundingClientRect().top;
+      document.documentElement.style.setProperty(
+        '--nav-clearance',
+        `${Math.round(top + navInner.offsetHeight + 24)}px`,
+      );
+    }
+
+    syncNavClearance();
+
+    if (navInner && 'ResizeObserver' in window) {
+      const observer = new ResizeObserver(syncNavClearance);
+      observer.observe(navInner);
+      // View Transitions swap the DOM on navigation; drop the stale observer.
+      document.addEventListener('astro:before-swap', () => observer.disconnect(), { once: true });
+    } else {
+      window.addEventListener('resize', syncNavClearance);
+    }
+
     // Theme Management
     const html = document.documentElement;
     const themeCapsule = document.getElementById('theme-capsule');
