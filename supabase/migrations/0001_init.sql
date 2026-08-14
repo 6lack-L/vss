@@ -262,8 +262,12 @@ create policy "users delete their own reactions"
 -- ---------------------------------------------------------------------------
 
 insert into public.locations (slug, name, sort) values
-  ('northfield',  'Northfield',   1),
-  ('eastbrook',   'Eastbrook',    2),
-  ('southgate',   'Southgate',    3),
-  ('westhaven',   'Westhaven',    4)
+  ('new-ferolle',         'New Ferolle',         1),
+  ('reefs-harbour',       'Reefs Harbour',       2),
+  ('barletts-harbour',    'Barletts Harbour',    3),
+  ('castor-river-south',  'Castor River South',  4),
+  ('castor-river-north',  'Castor River North',  5),
+  ('birdcove',            'Birdcove',            6),
+  ('brigbay',             'Brigbay',             7),
+  ('plum-point',          'Plum Point',          8)
 on conflict (slug) do nothing;
