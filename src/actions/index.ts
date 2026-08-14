@@ -39,6 +39,30 @@ const optionalText = (max: number) =>
     .nullish()
     .transform(v => (v ? v : null));
 
+/** Avatar uploads. The bucket enforces the same limits server-side. */
+const AVATAR_BUCKET = 'avatars';
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/**
+ * Pull the storage path back out of a public avatar URL, so replacing a
+ * picture can clean up the one it supersedes. Returns null for avatars that
+ * were linked from elsewhere — those aren't ours to delete.
+ */
+function bucketPathFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
+  const at = url.indexOf(marker);
+  if (at === -1) return null;
+  const path = url.slice(at + marker.length).split('?')[0];
+  return path ? decodeURIComponent(path) : null;
+}
+
 export const server = {
   createListing: defineAction({
     accept: 'form',
@@ -258,6 +282,73 @@ export const server = {
         dbError('Could not save your profile.', error);
       }
       return { username: input.username };
+    },
+  }),
+
+  uploadAvatar: defineAction({
+    accept: 'form',
+    input: z.object({
+      avatar: z
+        .instanceof(File, { message: 'Choose an image to upload.' })
+        // An untouched file input still submits a File — empty, unnamed. Catch
+        // it here or we store a zero-byte object and blank out the avatar.
+        .refine(file => file.size > 0, 'Choose an image to upload.')
+        .refine(
+          file => file.size <= AVATAR_MAX_BYTES,
+          'That image is larger than 2 MB. Try a smaller one.'
+        )
+        .refine(
+          // hasOwn, not `in` — `in` walks the prototype, so a forged
+          // Content-Type of "toString" would pass.
+          file => Object.hasOwn(AVATAR_TYPES, file.type),
+          'Upload a JPEG, PNG, WebP or GIF image.'
+        ),
+    }),
+    handler: async ({ avatar }, context) => {
+      const user = requireUser(context);
+      const supabase = context.locals.supabase;
+
+      // Timestamped name rather than a fixed path with upsert: the bucket is
+      // public and CDN-cached, so reusing one path serves the old picture for
+      // hours. The previous object is removed below to keep the folder tidy.
+      const path = `${user.id}/${Date.now()}.${AVATAR_TYPES[avatar.type]}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, avatar, { contentType: avatar.type, cacheControl: '3600' });
+
+      if (uploadError) {
+        console.error('Avatar upload failed', uploadError);
+        throw new ActionError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Could not upload that image. Please try again.',
+        });
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+
+      const previous = context.locals.profile?.avatar_url ?? null;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (error) {
+        // Don't leave the orphan behind if the row never picked it up.
+        await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+        dbError('Could not save your new avatar.', error);
+      }
+
+      // Best effort — an old file left behind is untidy, not broken.
+      const stale = bucketPathFromUrl(previous);
+      if (stale && stale !== path) {
+        await supabase.storage.from(AVATAR_BUCKET).remove([stale]);
+      }
+
+      return { avatar_url: publicUrl };
     },
   }),
 };

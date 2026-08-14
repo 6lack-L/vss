@@ -13,18 +13,22 @@ capsule nav.
 
 ### 1. Create a Supabase project
 
-Then apply the schema. Either paste `supabase/migrations/0001_init.sql` into the
-SQL editor, or with the Supabase CLI:
+Then apply the schema. Either paste the files in `supabase/migrations/` into the
+SQL editor in order, or with the Supabase CLI:
 
 ```bash
 supabase db push
 ```
 
-The migration creates `profiles`, `listings`, `replies`, `reactions` and
+`0001_init.sql` creates `profiles`, `listings`, `replies`, `reactions` and
 `locations`, enables row-level security on all of them, and installs a trigger
-that creates a profile row for every new auth user.
+that creates a profile row for every new auth user. `0002_locations.sql` swaps
+the seeded towns for the real community list. `0003_avatars_storage.sql` creates
+the public `avatars` storage bucket and the policies that let a signed-in user
+write only inside their own folder.
 
-Edit the seed `locations` at the bottom of the migration to your real towns.
+Edit the seed `locations` at the bottom of `0001_init.sql` — and the matching
+list in `0002_locations.sql` — to your real towns.
 
 ### 2. Configure environment
 

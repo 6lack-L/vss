@@ -16,9 +16,17 @@ const error = result?.error?.message ?? null;
 const savedUsername = result && !result.error ? result.data.username : null;
 const saved = savedUsername !== null;
 
+const upload = Astro.getActionResult(actions.uploadAvatar);
+const uploadError = upload?.error?.message ?? null;
+const uploadedAvatar = upload && !upload.error ? upload.data.avatar_url : null;
+
 // Show what was just saved rather than the stale row the middleware loaded
 // before the action ran.
-const current = savedUsername ? { ...profile, username: savedUsername } : profile;
+const current = {
+  ...profile,
+  ...(savedUsername ? { username: savedUsername } : {}),
+  ...(uploadedAvatar ? { avatar_url: uploadedAvatar } : {}),
+};
 ---
 
 <BaseLayout title={'Settings - ' + siteConfig.title}>
@@ -30,6 +38,8 @@ const current = savedUsername ? { ...profile, username: savedUsername } : profil
 
       {error && <p class="alert alert-error">{error}</p>}
       {saved && <p class="alert alert-success">Profile saved.</p>}
+      {uploadError && <p class="alert alert-error">{uploadError}</p>}
+      {uploadedAvatar && <p class="alert alert-success">Profile picture updated.</p>}
 
       <div class="preview">
         <Avatar profile={current} size={56} />
@@ -38,6 +48,25 @@ const current = savedUsername ? { ...profile, username: savedUsername } : profil
           <span class="handle">@{current.username}</span>
         </div>
       </div>
+
+      {/* Its own form: file uploads need multipart encoding, and this posts on
+          its own so the picture lands without touching the fields below. */}
+      <form
+        method="POST"
+        action={actions.uploadAvatar}
+        enctype="multipart/form-data"
+        class="upload"
+      >
+        <div class="field">
+          <label for="avatar">Upload a profile picture</label>
+          <input
+            class="input file" type="file" id="avatar" name="avatar"
+            accept="image/jpeg,image/png,image/webp,image/gif" required
+          />
+          <p class="hint">JPEG, PNG, WebP or GIF, up to 2&nbsp;MB. This replaces the avatar URL below.</p>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">Upload picture</button>
+      </form>
 
       <form method="POST" action={actions.updateProfile}>
         <div class="field">
@@ -66,7 +95,11 @@ const current = savedUsername ? { ...profile, username: savedUsername } : profil
             class="input" type="url" id="avatar_url" name="avatar_url"
             placeholder="https://…" value={current.avatar_url ?? ''}
           />
-          <p class="hint">A link to an image. Must start with https://. Leave blank to use your initials.</p>
+          <p class="hint">
+            Filled in for you after an upload. You can also paste a link to an
+            image hosted elsewhere — it must start with https://. Leave blank to
+            use your initials.
+          </p>
         </div>
 
         <div class="field">
@@ -115,6 +148,25 @@ const current = savedUsername ? { ...profile, username: savedUsername } : profil
   .handle { color: var(--text-tertiary); font-size: 0.875rem; }
 
   .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+  .upload {
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .file { padding: 0.5rem 0.75rem; font-size: 0.875rem; }
+  .file::file-selector-button {
+    margin-right: 0.75rem;
+    padding: 0.35rem 0.7rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
 
   .meta { margin-bottom: 1.25rem; }
   .meta dt {
