@@ -2,7 +2,10 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { siteConfig } from '../config';
 
-export const prerender = true;
+// Not prerendered: the page content is static, but the nav inside BaseLayout
+// reads Astro.locals, which is empty at build time — a prerendered copy shows
+// every visitor a "Sign in" button, signed in or not.
+export const prerender = false;
 ---
 
 <BaseLayout title={'About - ' + siteConfig.title} description={siteConfig.description}>

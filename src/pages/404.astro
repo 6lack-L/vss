@@ -2,7 +2,8 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { siteConfig } from '../config';
 
-export const prerender = true;
+// Same reason as /about — a prerendered page renders the signed-out nav.
+export const prerender = false;
 ---
 
 <BaseLayout title={'404 - ' + siteConfig.title}>
