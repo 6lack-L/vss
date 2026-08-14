@@ -210,6 +210,46 @@ const loginHref = `/login?next=${encodeURIComponent(next)}`;
     color: var(--color-primary);
   }
 
+  /* Theme switcher — a segmented control, one segment per mode. The script
+     puts .active on whichever mode is stored. */
+  .theme-capsule {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+  }
+
+  .theme-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .theme-option:hover { color: var(--color-primary); }
+
+  .theme-option.active {
+    background: var(--bg-primary);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .theme-option:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+  }
+
   /* Account */
   .account { position: relative; }
 
@@ -369,9 +409,14 @@ const loginHref = `/login?next=${encodeURIComponent(next)}`;
       // The nav is fixed, so its rect top is the viewport offset and does not
       // move with scroll — no scrollY term here.
       const top = nav.getBoundingClientRect().top;
+      const height = navInner.offsetHeight;
+      // A hidden or not-yet-laid-out nav measures zero — mid view-transition,
+      // for one. Leave the CSS fallback in place rather than publishing a
+      // clearance too small to clear the bar.
+      if (height <= 0) return;
       document.documentElement.style.setProperty(
         '--nav-clearance',
-        `${Math.round(top + navInner.offsetHeight + 24)}px`,
+        `${Math.max(96, Math.round(top + height + 24))}px`,
       );
     }
 
